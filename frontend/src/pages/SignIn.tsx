@@ -6,13 +6,21 @@ import {
   Pressable,
   Alert,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {RootStackParamList} from '../../App';
+import {RootStackParamList} from '../../AppInner';
+import axios, {AxiosError} from 'axios';
+import EncryptedStorage from 'react-native-encrypted-storage';
+import Config from 'react-native-config';
+import {useAppDispatch} from '../store';
+import userSlice from '../slices/user';
 
 type SignInScreenProps = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
 
 function SignIn({navigation}: SignInScreenProps) {
+  const dispatch = useAppDispatch();
+  const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -22,7 +30,7 @@ function SignIn({navigation}: SignInScreenProps) {
   const [isInvalidEmail, setIsInvalidEmail] = useState(false);
   const [isInvalidPassword, setIsInvalidPassword] = useState(false);
 
-  const onSubmit = useCallback(() => {
+  const onSubmit = useCallback(async () => {
     if (!email.trim()) {
       setIsInvalidEmail(true);
     }
@@ -30,9 +38,36 @@ function SignIn({navigation}: SignInScreenProps) {
       setIsInvalidPassword(true);
     }
     if (email.trim() && password.trim()) {
-      Alert.alert('알림', '로그인');
+      setLoading(true);
+      try {
+        const response = await axios.post(`${Config.API_URL}/login`, {
+          email,
+          password,
+        });
+        console.log(response.data);
+        Alert.alert('알림', '로그인 되었습니다.');
+        dispatch(
+          userSlice.actions.setUser({
+            name: response.data.data.name,
+            email: response.data.data.email,
+            accessToken: response.data.data.accessToken,
+          }),
+        );
+        await EncryptedStorage.setItem(
+          'refreshToken',
+          response.data.data.refreshToken,
+        );
+      } catch (error) {
+        const errorResponse = (error as AxiosError).response;
+        if (errorResponse) {
+          Alert.alert('알림', errorResponse.data.message);
+        }
+        return;
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [email, password]);
+  }, [dispatch, email, password]);
 
   const onChangeEmail = useCallback(text => {
     if (text.trim()) {
@@ -40,6 +75,7 @@ function SignIn({navigation}: SignInScreenProps) {
     }
     setEmail(text);
   }, []);
+
   const onChangePassword = useCallback(text => {
     if (text.trim()) {
       setIsInvalidPassword(false);
@@ -95,8 +131,15 @@ function SignIn({navigation}: SignInScreenProps) {
         </View>
       </View>
       <View style={style.buttonZone}>
-        <Pressable style={style.loginButton} onPress={onSubmit}>
-          <Text style={style.loginButtonText}>로그인</Text>
+        <Pressable
+          style={style.loginButton}
+          onPress={onSubmit}
+          disabled={loading}>
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text style={style.loginButtonText}>로그인</Text>
+          )}
         </Pressable>
         <Pressable style={style.signUpButton} onPress={toSignUp}>
           <Text style={style.signUpButtonText}>회원가입</Text>

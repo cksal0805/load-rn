@@ -6,14 +6,19 @@ import {
   Pressable,
   Alert,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {RootStackParamList} from '../../App';
+
+import {RootStackParamList} from '../../AppInner';
 import DismissKeyBoardView from '../components/DismissKeyBoardView';
+import axios, {AxiosError} from 'axios';
+import Config from 'react-native-config';
 
 type SignUpScreenProps = NativeStackScreenProps<RootStackParamList, 'SignUp'>;
 
 function SignUp({navigation}: SignUpScreenProps) {
+  const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -26,7 +31,7 @@ function SignUp({navigation}: SignUpScreenProps) {
   const [isInvalidName, setIsInvalidName] = useState(false);
   const [isInvalidPassword, setIsInvalidPassword] = useState(false);
 
-  const onSubmit = useCallback(() => {
+  const onSubmit = useCallback(async () => {
     if (!email.trim()) {
       setIsInvalidEmail(true);
     }
@@ -37,9 +42,28 @@ function SignUp({navigation}: SignUpScreenProps) {
       setIsInvalidName(true);
     }
     if (email.trim() && password.trim() && name.trim()) {
-      Alert.alert('알림', '회원 가입');
+      setLoading(true);
+      try {
+        const response = await axios.post(`${Config.API_URL}/user`, {
+          email,
+          name,
+          password,
+        });
+        console.log(response.data);
+        navigation.navigate('SignIn');
+      } catch (error) {
+        const errorResponse = (error as AxiosError).response;
+        console.error(errorResponse);
+        if (errorResponse) {
+          Alert.alert('에러발생', errorResponse.data.message);
+        }
+        return;
+      } finally {
+        setLoading(false);
+      }
+      Alert.alert('알림', '회원가입이 완료 되었습니다.');
     }
-  }, [email, password, name]);
+  }, [navigation, email, password, name]);
 
   const onChangeEmail = useCallback(text => {
     if (text.trim()) {
@@ -126,8 +150,15 @@ function SignUp({navigation}: SignUpScreenProps) {
           </View>
         </View>
         <View style={style.buttonZone}>
-          <Pressable style={style.signUpButton} onPress={onSubmit}>
-            <Text style={style.signUpButtonText}>회원가입</Text>
+          <Pressable
+            style={style.signUpButton}
+            disabled={loading}
+            onPress={onSubmit}>
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={style.signUpButtonText}>회원가입</Text>
+            )}
           </Pressable>
         </View>
       </View>
