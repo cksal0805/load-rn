@@ -1,12 +1,30 @@
 import axios from 'axios';
 import Config from 'react-native-config';
 import EncryptedStorage from 'react-native-encrypted-storage';
-import {useDispatch} from 'react-redux';
-import userSlice from '../slices/user';
+import {useSelector} from 'react-redux';
+import {RootState} from '../store/reducer';
 
 const customAxios = axios.create({
   baseURL: `${Config.API_URL}`,
 });
+
+const requestHandler = async (config: any) => {
+  const token = await EncryptedStorage.getItem('refreshToken');
+  if (!token) {
+    return;
+  }
+  const response = await customAxios.post(
+    '/refreshToken',
+    {},
+    {
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    },
+  );
+  config.headers.authorization = `Bearer ${response.data.data.accessToken}`;
+  return config;
+};
 
 const errorHandler = async (
   error: any,
@@ -30,4 +48,4 @@ const errorHandler = async (
   return Promise.reject(error);
 };
 
-export {customAxios, errorHandler};
+export {customAxios, errorHandler, requestHandler};
