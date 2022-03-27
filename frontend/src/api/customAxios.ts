@@ -1,8 +1,6 @@
 import axios from 'axios';
 import Config from 'react-native-config';
 import EncryptedStorage from 'react-native-encrypted-storage';
-import {useSelector} from 'react-redux';
-import {RootState} from '../store/reducer';
 
 const customAxios = axios.create({
   baseURL: `${Config.API_URL}`,
